@@ -1,102 +1,101 @@
-# Continuous-Rotation: O2LIIFSR Prototype
+# Continuous-Rotation: O2LIIFSR / GroupO2LIIFSR Research Prototype
 
-## 1. 项目目标
-实现 arbitrary-scale implicit SR 原型，并加入旋转/反射一致性正则与评估，为未来严格 O(2)-equivariant 版本铺路。
+## 1) 结论先说：是否已经实现“连续旋转等变”？
+**没有。当前版本还不是严格的 continuous O(2)-equivariant network。**
 
-## 2. 当前实现范围
-- LIIF-style pipeline: Encoder + Local sampler + Implicit decoder
-- 训练/验证/测试一键流程
-- Rotation/Reflection consistency loss（soft regularization）
-- PSNR/SSIM/Rot-EE/Ref-EE 指标
-- EquivariantEncoder / O2ImplicitDecoder 占位接口
+当前实现是一个**离散近似原型**：
+- 用离散群 `G_K={(k,r)}`（`k=0..K-1`, `r∈{0,1}`）近似 `O(2)`；
+- `EquivariantEncoder` 采用 lifting（对每个离散群元素变换输入后共享 backbone 编码）；
+- `SpectralAngularMix` 在离散 rotation bins 上做有限阶 Fourier 模态截断（`num_angular_modes=M`）；
+- reflection 通过 even/odd decomposition 处理。
 
-## 3. 如何准备数据
+所以它是：
+- ✅ **discrete quadrature approximation + finite angular truncation**
+- ❌ **不是最终连续群解析等变算子**。
+
+---
+
+## 2) 当前实现了什么
+- Arbitrary-scale implicit SR 主链路：`Enc -> Samp -> Dec`
+- Group-aware 版本：`Enc_G -> SpectralGroupBlocks -> GroupSampler -> GroupDecoder`
+- 训练损失：`L_rec + λ_rot L_rot + λ_ref L_ref`
+- 指标：`PSNR / SSIM / Rot-EE / Ref-EE`
+- 自动化：数据准备、训练、测试、checkpoint、指标导出
+
+---
+
+## 3) 如何运行代码
+
+### 3.1 准备数据目录
 ```bash
 python scripts/prepare_data.py --root ./data
 ```
-脚本会：
-- 自动创建 `train_hr/val_hr/test_hr`
-- 自动尝试下载 DIV2K train/valid HR（若公网可达）
-- 若下载失败，会保留目录并给出 `download_report`，你仍可手动放置图像
+- 会创建：`data/train_hr`, `data/val_hr`, `data/test_hr`
+- 会尝试下载公开 DIV2K（若网络不可达会给出 `download_report`）
 
-仅创建目录（不尝试下载）：
+若你只想建目录不下载：
 ```bash
 python scripts/prepare_data.py --root ./data --no-download
 ```
 
-## 4. 如何训练
+### 3.2 训练
 ```bash
 python scripts/train_sr.py --config configs/default_sr.yaml
 ```
-
-## 5. 如何测试
-```bash
-python scripts/test_sr.py --config configs/default_sr.yaml --ckpt outputs/<exp>/checkpoints/best.pt --out outputs/test_eval
-```
-
-## 6. 如何查看输出结果
-每次训练会新建 `outputs/<timestamp>/`，包含：
+默认配置会在 `outputs/<timestamp>/` 生成：
 - `config.yaml`
 - `train.log`
 - `metrics.json`
 - `metrics.csv`
-- `checkpoints/latest.pt`, `checkpoints/best.pt`
+- `checkpoints/latest.pt`
+- `checkpoints/best.pt`
 
-## 7. 距离完整 O(2)-equivariant 论文版还差什么
-- 严格群等变 encoder/decoder（当前仅接口占位）
-- spectral basis / steerable kernel 模块
-- 更精确的图像域 group action consistency + benchmark protocol
+### 3.3 测试
+```bash
+python scripts/test_sr.py \
+  --config configs/default_sr.yaml \
+  --ckpt outputs/<exp>/checkpoints/best.pt \
+  --out outputs/test_eval
+```
 
+### 3.4 谱参数扫描（消融）
+```bash
+python scripts/scan_spectral.py --config configs/default_sr.yaml --out outputs/spectral_scan.json
+```
+会扫：
+- `K in {4,8,12,16}`
+- `use_reflection in {False,True}`
+- `M in [1..floor(K/2)]`
+并输出 JSON/CSV。
 
-## 8. 离散 O(2) 近似说明（当前版本）
-- 当前 `EquivariantEncoder` 是 lifting-based discrete group approximation：对每个离散群元素 `(k,r)` 先变换输入，再通过共享 CNN 编码。
-- `GroupO2LIIFSR` 前向：`Enc_G -> GroupSampler -> GroupDecoder`。
-- 这不是严格连续 O(2)-equivariant 网络；后续应替换为真实 group convolution / 连续群表示。
-- 模型变体可通过 `model.variant` 切换：
+---
+
+## 4) 配置切换（重点）
+在 `configs/default_sr.yaml` 里可改：
+- `model.variant`：
   - `baseline_liif`
   - `baseline_liif_consistency`
   - `group_encoder_baseline_decoder`
   - `group_encoder_group_decoder`
   - `group_encoder_group_decoder_consistency`
+- `model.num_rotations` (`K`)
+- `model.use_reflection`
+- `model.num_angular_modes` (`M`)
+- `model.num_spectral_blocks`
+- `model.spectral_residual`
+- `model.enable_spectral`
 
+---
 
-## 9. Spectral parameterized group-aware SR (current stage)
-- We insert spectral parameterization on group feature tensor `F_G` (scheme A): `Enc_G -> SpectralGroupBlocks -> Sampler -> Decoder`.
-- Rotation dimension uses band-limited Fourier expansion (cos/sin real basis) with configurable `num_angular_modes=M`.
-- Reflection dimension uses explicit even/odd decomposition: `even=(f0+f1)/2`, `odd=(f0-f1)/2`, then inverse recombination.
-- This is **not** full continuous O(2) analytic convolution; it is a discrete group spectral approximation to reduce angular aliasing and representation inefficiency.
+## 5) 与最终“连续 O(2)-equivariant restoration”还差什么
+- 连续群上的严格等变卷积/算子（非固定 `K` bins）
+- 连续群积分与离散求和误差控制（可证明近似误差）
+- 与成像退化模型 `y=SBx+n` 深度耦合的连续算子实现
+- 更完整的连续角度评估协议与理论验证
 
-Run ablation scan:
-```bash
-python scripts/scan_spectral.py --config configs/default_sr.yaml --out outputs/spectral_scan.json
-```
+---
 
-
-
-## 10. Continuous目标 vs 当前离散实现（重要）
-
-本仓库当前实现应被视为对连续 O(2)-equivariant restoration 的**数值近似**，而不是理论终态：
-
-### Continuous definitions (theoretical target)
-- 真值图像：`x: Ω -> R^c`
-- 观测：`y = S B x + n`
-- 群作用：`[T_g x](u) = x(g^{-1}u), g in O(2)`
-- latent：`z(u,g), (u,g) in Ω × O(2)`，并满足
-  ` [T_h z](u,g) = z(h^{-1}u, h^{-1}g)`
-- 输出：`x_hat(p) = D(p, A(z,p))`
-
-### Discrete quadrature approximation (current code)
-- `O(2)` 被离散化为 `G_K = {(k,r)}`，`k=0..K-1`, `r in {0,1}`。
-- `EquivariantEncoder` 使用 lifting：`Enc_G(y) = {E_base(T_g y)}_{g in G_K}`。
-- 这对应对群积分/群变量聚合的离散求和近似，不是连续群卷积解析形式。
-
-### Finite angular truncation approximation (current code)
-- `SpectralAngularMix` 只保留前 `M` 个角向模态（`num_angular_modes`），即 band-limited truncation。
-- 使用实数 cos/sin basis 做投影与重构，并在每个 mode 上做可学习通道混合。
-- reflection 通过 even/odd decomposition 进入：
-  `even=(f0+f1)/2`, `odd=(f0-f1)/2`，分别谱变换后再重构。
-
-### What is still missing for full continuous O(2)
-- 连续群上的解析/可积核与严格等变算子（而非固定 K bins）。
-- 从离散求和到可控连续积分近似误差界与采样策略。
-- 与成像退化模型 (`S,B,n`) 更严格耦合的连续算子设计。
+## 6) 一句话定位
+这个仓库现在是：
+> **可运行的、研究导向的、离散 O(2) 近似 + 谱截断的 implicit SR 原型**，
+> 不是最终连续 O(2)-equivariant 论文模型。
