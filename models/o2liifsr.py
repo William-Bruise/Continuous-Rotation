@@ -22,7 +22,15 @@ class O2LIIFSR(nn.Module):
 class GroupO2LIIFSR(nn.Module):
     """Discrete O(2)-approximate group-aware LIIF model (lifting-based).
 
-    Forward: F_G=Enc_G(y) -> F'_G=Spectral(F_G) -> Z=Samp(F'_G,P,s) -> RGB=Dec(Z)
+    Code-level forward:
+        F_G = Enc_G(y)
+        F'_G = Spectral(F_G)
+        Z = Samp(F'_G, P, s)
+        RGB = Dec(Z)
+
+    Interpretation:
+    - Continuous definition target: x_hat(p) = D(p, A(z,p)), z over Ω×O(2).
+    - Current code uses discrete G_K and finite angular spectral truncation as approximation.
     """
     def __init__(self, feat_ch=64, n_blocks=8, decoder_hidden=256, K=8, pooling='mean', reflect_axis='x', use_group_decoder=True,
                  use_reflection=True, num_angular_modes=3, num_spectral_blocks=2, spectral_residual=True, enable_spectral=True):

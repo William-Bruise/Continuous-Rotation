@@ -6,7 +6,10 @@ import torch.nn as nn
 class SpectralAngularMix(nn.Module):
     """Band-limited angular Fourier mixing on discrete rotation bins.
 
-    Approximates continuous angular variation by truncated Fourier modes on discrete K bins.
+    Mathematical role in this repo:
+    - Continuous target: angular dependence over theta in O(2).
+    - Current implementation: discrete quadrature over K bins + finite mode truncation up to M.
+    - Therefore this is an approximation layer (not a final continuous O(2) analytic operator).
     """
     def __init__(self, channels, K=8, num_modes=3, use_reflection=True):
         super().__init__()
@@ -28,6 +31,7 @@ class SpectralAngularMix(nn.Module):
 
     def _project_reconstruct(self, x):
         # x: [B,K,C,H,W]
+        # Discrete projection/reconstruction on rotation bins (quadrature-style sum over k).
         b, k, c, h, w = x.shape
         out = 0.0
         for m in range(self.M + 1):
@@ -45,7 +49,7 @@ class SpectralAngularMix(nn.Module):
     def forward(self, fg):
         # fg: [B,G,C,H,W], G=R*K where R in {1,2}
         b, g, c, h, w = fg.shape
-        R = 2 if self.use_reflection else 1
+        R = 2 if self.use_reflection else 1  # reflection states
         assert g == R * self.K, f'expected group dim {R*self.K}, got {g}'
         x = fg.view(b, R, self.K, c, h, w)
         if R == 2:

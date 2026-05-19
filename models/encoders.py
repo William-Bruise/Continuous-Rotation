@@ -27,8 +27,11 @@ class BaseEncoder(nn.Module):
 class EquivariantEncoder(nn.Module):
     """Lifting-based discrete O(2) approximation (NOT strict group convolution).
 
-    Enc_G(y) = { E_base(T_g y) }_{g in G}, output shape [B, |G|, C, H, W].
-    Future work: replace with true O(2)-equivariant group convolution encoder.
+    Continuous target would define latent z(u,g) over g in O(2).
+    Here we approximate with discrete bins G_K and shared-backbone lifting:
+        Enc_G(y) = { E_base(T_g y) }_{g in G_K}
+    Output shape: [B, |G_K|, C, H, W].
+    This is a numerical approximation, not the final continuous theory form.
     """
     def __init__(self, in_ch=3, feat_ch=64, n_blocks=8, K=8, reflect_axis='x'):
         super().__init__()
