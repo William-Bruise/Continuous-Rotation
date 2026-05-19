@@ -14,7 +14,15 @@
 ```bash
 python scripts/prepare_data.py --root ./data
 ```
-把图像放到 `data/train_hr`, `data/val_hr`, `data/test_hr`。
+脚本会：
+- 自动创建 `train_hr/val_hr/test_hr`
+- 自动尝试下载 DIV2K train/valid HR（若公网可达）
+- 若下载失败，会保留目录并给出 `download_report`，你仍可手动放置图像
+
+仅创建目录（不尝试下载）：
+```bash
+python scripts/prepare_data.py --root ./data --no-download
+```
 
 ## 4. 如何训练
 ```bash
