@@ -2,24 +2,7 @@ import math
 import torch
 import torch.nn.functional as F
 
-
-def _affine(theta_deg, b, device):
-    t = math.radians(theta_deg)
-    c, s = math.cos(t), math.sin(t)
-    a = torch.tensor([[c, -s, 0.0], [s, c, 0.0]], device=device).unsqueeze(0).repeat(b, 1, 1)
-    return a
-
-
-def rotate_image(x, theta, mode='bilinear'):
-    b = x.shape[0]
-    grid = F.affine_grid(_affine(theta, b, x.device), x.size(), align_corners=False)
-    return F.grid_sample(x, grid, mode=mode, padding_mode='border', align_corners=False)
-
-
-def reflect_image(x, axis='horizontal'):
-    if axis == 'horizontal':
-        return torch.flip(x, dims=[3])
-    return torch.flip(x, dims=[2])
+ALIGN_CORNERS = False
 
 
 def rotate_coords(p, theta):
@@ -28,13 +11,56 @@ def rotate_coords(p, theta):
     return p @ rot.T
 
 
-def reflect_coords(p, axis='horizontal'):
+def reflect_coords(p, axis='x'):
     out = p.clone()
-    if axis == 'horizontal':
+    if axis == 'x':  # M(x,y)=(x,-y)
+        out[..., 1] = -out[..., 1]
+    elif axis == 'y':
         out[..., 0] = -out[..., 0]
     else:
-        out[..., 1] = -out[..., 1]
+        raise ValueError(axis)
     return out
+
+
+def apply_group_to_coords(coords, k, r, K=8, reflect_axis='x'):
+    theta = 360.0 * (k % K) / K
+    c = reflect_coords(coords, axis=reflect_axis) if int(r) == 1 else coords
+    return rotate_coords(c, theta)
+
+
+def apply_group_inverse_to_coords(coords, k, r, K=8, reflect_axis='x'):
+    # T_g = R_theta M^r => T_g^{-1} = M^r R_{-theta}
+    theta = -360.0 * (k % K) / K
+    c = rotate_coords(coords, theta)
+    return reflect_coords(c, axis=reflect_axis) if int(r) == 1 else c
+
+
+def _warp_by_coord_map(x, map_fn, mode='bilinear'):
+    b, _, h, w = x.shape
+    yy, xx = torch.meshgrid(
+        torch.linspace(-1, 1, h, device=x.device, dtype=x.dtype),
+        torch.linspace(-1, 1, w, device=x.device, dtype=x.dtype),
+        indexing='ij',
+    )
+    base = torch.stack([xx, yy], dim=-1).unsqueeze(0).repeat(b, 1, 1, 1)
+    src = map_fn(base)
+    return F.grid_sample(x, src, mode=mode, padding_mode='border', align_corners=ALIGN_CORNERS)
+
+
+def apply_group_to_image(x, k, r, K=8, reflect_axis='x', mode='bilinear'):
+    # T_g y = warp(y, T_g^{-1})
+    return _warp_by_coord_map(x, lambda c: apply_group_inverse_to_coords(c, k, r, K=K, reflect_axis=reflect_axis), mode=mode)
+
+
+def rotate_image(x, theta, mode='bilinear'):
+    # compatibility helper
+    k = int(round(theta / 360.0 * 3600))
+    return _warp_by_coord_map(x, lambda c: rotate_coords(c, -theta), mode=mode)
+
+
+def reflect_image(x, axis='horizontal'):
+    reflect_axis = 'x' if axis in ('horizontal', 'x') else 'y'
+    return apply_group_to_image(x, k=0, r=1, K=1, reflect_axis=reflect_axis, mode='bilinear')
 
 
 def inverse_group_action(kind, value):

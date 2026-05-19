@@ -9,6 +9,10 @@ dataset:
   scale_max: 4.0
   interpolation_mode: bicubic
 model:
+  variant: group_encoder_group_decoder_consistency
+  group_K: 8
+  group_pooling: mean
+  reflect_axis: x
   encoder_channels: 64
   num_residual_blocks: 8
   decoder_hidden_dim: 256

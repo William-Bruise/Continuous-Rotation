@@ -1,4 +1,6 @@
+import torch
 import torch.nn as nn
+from .group_ops import apply_group_to_image
 
 
 class ResidualBlock(nn.Module):
@@ -23,7 +25,21 @@ class BaseEncoder(nn.Module):
 
 
 class EquivariantEncoder(nn.Module):
-    """Placeholder for future strict O(2)-equivariant encoder."""
-    def __init__(self, *args, **kwargs):
+    """Lifting-based discrete O(2) approximation (NOT strict group convolution).
+
+    Enc_G(y) = { E_base(T_g y) }_{g in G}, output shape [B, |G|, C, H, W].
+    Future work: replace with true O(2)-equivariant group convolution encoder.
+    """
+    def __init__(self, in_ch=3, feat_ch=64, n_blocks=8, K=8, reflect_axis='x'):
         super().__init__()
-        raise NotImplementedError('EquivariantEncoder is a planned interface placeholder.')
+        self.base = BaseEncoder(in_ch=in_ch, feat_ch=feat_ch, n_blocks=n_blocks)
+        self.K = K
+        self.reflect_axis = reflect_axis
+        self.group_elements = [(k, r) for r in (0, 1) for k in range(K)]
+
+    def forward(self, x):
+        feats = []
+        for k, r in self.group_elements:
+            xg = apply_group_to_image(x, k=k, r=r, K=self.K, reflect_axis=self.reflect_axis)
+            feats.append(self.base(xg).unsqueeze(1))
+        return torch.cat(feats, dim=1)

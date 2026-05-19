@@ -13,7 +13,7 @@ def rotation_equivariance_error(model, lr, coords, cell, scale, angles):
         return float(sum(errs) / max(1, len(errs)))
 
 
-def reflection_equivariance_error(model, lr, coords, cell, scale, axis='horizontal'):
+def reflection_equivariance_error(model, lr, coords, cell, scale, axis='x'):
     with torch.no_grad():
         base = model(lr, coords, cell, scale)
         pref = model(reflect_image(lr, axis), reflect_coords(coords, axis), cell, scale)

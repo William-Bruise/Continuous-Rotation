@@ -6,7 +6,7 @@ import torch
 from torch.utils.data import DataLoader
 from utils.config import load_config
 from datasets import BenchmarkSRDataset
-from models import O2LIIFSR
+from models import O2LIIFSR, GroupO2LIIFSR
 from evaluators.sr_evaluator import evaluate_model, save_metrics
 from utils.checkpoint import load_checkpoint
 
@@ -18,7 +18,12 @@ if __name__ == '__main__':
     args = ap.parse_args()
     cfg = load_config(args.config)
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    model = O2LIIFSR(feat_ch=cfg['model']['encoder_channels'], n_blocks=cfg['model']['num_residual_blocks'], decoder_hidden=cfg['model']['decoder_hidden_dim']).to(device)
+    mcfg = cfg['model']
+    if mcfg.get('variant', 'baseline_liif') in ('baseline_liif', 'baseline_liif_consistency'):
+        model = O2LIIFSR(feat_ch=mcfg['encoder_channels'], n_blocks=mcfg['num_residual_blocks'], decoder_hidden=mcfg['decoder_hidden_dim']).to(device)
+    else:
+        use_group_decoder = mcfg.get('variant') in ('group_encoder_group_decoder', 'group_encoder_group_decoder_consistency')
+        model = GroupO2LIIFSR(feat_ch=mcfg['encoder_channels'], n_blocks=mcfg['num_residual_blocks'], decoder_hidden=mcfg['decoder_hidden_dim'], K=mcfg.get('group_K', 8), pooling=mcfg.get('group_pooling', 'mean'), reflect_axis=mcfg.get('reflect_axis', 'x'), use_group_decoder=use_group_decoder).to(device)
     load_checkpoint(args.ckpt, model, None, device)
     loader = DataLoader(BenchmarkSRDataset(cfg['dataset']['root'], 'test', cfg['dataset']['patch_size'], cfg['dataset']['query_points'], cfg['dataset']['scale_min'], cfg['dataset']['scale_max'], cfg['dataset']['interpolation_mode']), batch_size=1)
     metrics = evaluate_model(model, loader, device, cfg['eval']['angles'])

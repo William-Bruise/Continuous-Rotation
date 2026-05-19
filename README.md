@@ -46,3 +46,15 @@ python scripts/test_sr.py --config configs/default_sr.yaml --ckpt outputs/<exp>/
 - 严格群等变 encoder/decoder（当前仅接口占位）
 - spectral basis / steerable kernel 模块
 - 更精确的图像域 group action consistency + benchmark protocol
+
+
+## 8. 离散 O(2) 近似说明（当前版本）
+- 当前 `EquivariantEncoder` 是 lifting-based discrete group approximation：对每个离散群元素 `(k,r)` 先变换输入，再通过共享 CNN 编码。
+- `GroupO2LIIFSR` 前向：`Enc_G -> GroupSampler -> GroupDecoder`。
+- 这不是严格连续 O(2)-equivariant 网络；后续应替换为真实 group convolution / 连续群表示。
+- 模型变体可通过 `model.variant` 切换：
+  - `baseline_liif`
+  - `baseline_liif_consistency`
+  - `group_encoder_baseline_decoder`
+  - `group_encoder_group_decoder`
+  - `group_encoder_group_decoder_consistency`
