@@ -6,7 +6,7 @@ import torch
 from torch.utils.data import DataLoader
 from utils.config import load_config
 from datasets import BenchmarkSRDataset
-from models import O2LIIFSR, GroupO2LIIFSR
+from models import O2LIIFSR, GroupO2LIIFSR, ContinuousGroupO2LIIFSR
 from evaluators.sr_evaluator import evaluate_model, save_metrics
 from utils.checkpoint import load_checkpoint
 
@@ -19,7 +19,9 @@ if __name__ == '__main__':
     cfg = load_config(args.config)
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     mcfg = cfg['model']
-    if mcfg.get('variant', 'baseline_liif') in ('baseline_liif', 'baseline_liif_consistency'):
+    if mcfg.get('variant', 'baseline_liif') == 'continuous_so2':
+        model = ContinuousGroupO2LIIFSR(feat_ch=mcfg['encoder_channels'], n_blocks=mcfg['num_residual_blocks'], decoder_hidden=mcfg['decoder_hidden_dim'], num_fourier_orders=mcfg.get('num_fourier_orders',3), num_orientation_quadrature=mcfg.get('num_orientation_quadrature',8), orientation_quadrature_mode=mcfg.get('orientation_quadrature_mode','uniform'), max_rotation_radians=mcfg.get('max_rotation_radians', 6.283185307179586)).to(device)
+    elif mcfg.get('variant', 'baseline_liif') in ('baseline_liif', 'baseline_liif_consistency'):
         model = O2LIIFSR(feat_ch=mcfg['encoder_channels'], n_blocks=mcfg['num_residual_blocks'], decoder_hidden=mcfg['decoder_hidden_dim']).to(device)
     else:
         use_group_decoder = mcfg.get('variant') in ('group_encoder_group_decoder', 'group_encoder_group_decoder_consistency')

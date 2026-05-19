@@ -69,3 +69,16 @@ def inverse_group_action(kind, value):
     if kind == 'reflect':
         return ('reflect', value)
     raise ValueError(kind)
+
+
+def rotate_coords_rad(p, theta_rad):
+    ct = torch.cos(theta_rad)
+    st = torch.sin(theta_rad)
+    x = p[..., 0:1]
+    y = p[..., 1:2]
+    return torch.cat([ct * x - st * y, st * x + ct * y], dim=-1)
+
+
+def rotate_image_rad(x, theta_rad, mode='bilinear'):
+    # [T_theta x](u)=x(R_{-theta}u) via inverse map
+    return _warp_by_coord_map(x, lambda c: rotate_coords_rad(c, -theta_rad), mode=mode)

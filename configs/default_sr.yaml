@@ -9,8 +9,14 @@ dataset:
   scale_max: 4.0
   interpolation_mode: bicubic
 model:
-  variant: group_encoder_group_decoder_consistency
+  variant: continuous_so2
   num_rotations: 8
+  num_fourier_orders: 3
+  num_orientation_quadrature: 8
+  orientation_quadrature_mode: uniform
+  max_rotation_radians: 6.283185307179586
+  align_corners: false
+  rotation_interp_mode: bilinear
   use_reflection: true
   num_angular_modes: 3
   num_spectral_blocks: 2
@@ -33,7 +39,11 @@ train:
 loss:
   enable_rot: true
   enable_ref: true
+  use_continuous_eq_loss: true
+  continuous_eq_loss_weight: 0.05
   lambda_rot: 0.05
   lambda_ref: 0.05
 eval:
   angles: [0, 30, 45, 60, 90, 120, 150, 180]
+
+  num_continuous_eval_angles: 8

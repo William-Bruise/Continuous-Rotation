@@ -4,9 +4,9 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from datasets import DIV2KASISRDataset
-from models import O2LIIFSR, GroupO2LIIFSR
+from models import O2LIIFSR, GroupO2LIIFSR, ContinuousGroupO2LIIFSR
 from losses.reconstruction import reconstruction_l1
-from losses.equivariance import rotation_consistency_loss, reflection_consistency_loss
+from losses.equivariance import rotation_consistency_loss, reflection_consistency_loss, continuous_equivariance_loss
 from evaluators.sr_evaluator import evaluate_model, save_metrics
 from utils.checkpoint import save_checkpoint, load_checkpoint
 
@@ -40,6 +40,8 @@ class SRTrainer:
     def _build_model(self):
         mcfg = self.cfg['model']
         variant = mcfg.get('variant', 'baseline_liif')
+        if variant == 'continuous_so2':
+            return ContinuousGroupO2LIIFSR(feat_ch=mcfg['encoder_channels'], n_blocks=mcfg['num_residual_blocks'], decoder_hidden=mcfg['decoder_hidden_dim'], num_fourier_orders=mcfg.get('num_fourier_orders',3), num_orientation_quadrature=mcfg.get('num_orientation_quadrature',8), orientation_quadrature_mode=mcfg.get('orientation_quadrature_mode','uniform'), max_rotation_radians=mcfg.get('max_rotation_radians', 6.283185307179586))
         if variant in ('baseline_liif', 'baseline_liif_consistency'):
             return O2LIIFSR(feat_ch=mcfg['encoder_channels'], n_blocks=mcfg['num_residual_blocks'], decoder_hidden=mcfg['decoder_hidden_dim'])
         use_group_decoder = variant in ('group_encoder_group_decoder', 'group_encoder_group_decoder_consistency')
@@ -80,6 +82,14 @@ class SRTrainer:
                     loss = loss + self.cfg['loss']['lambda_rot'] * rotation_consistency_loss(self.model, lr, q, cell, scale, random.choice(self.cfg['eval']['angles']))
                 if self.cfg['loss']['enable_ref']:
                     loss = loss + self.cfg['loss']['lambda_ref'] * reflection_consistency_loss(self.model, lr, q, cell, scale, axis=self.cfg['model'].get('reflect_axis', 'x'))
+
+                if self.cfg['loss'].get('use_continuous_eq_loss', False):
+                    loss = loss + self.cfg['loss'].get('continuous_eq_loss_weight', 0.05) * continuous_equivariance_loss(
+                        self.model, lr, q, cell, scale,
+                        max_rotation_radians=self.cfg['model'].get('max_rotation_radians', 6.283185307179586),
+                        interp_mode=self.cfg['model'].get('rotation_interp_mode', 'bilinear')
+                    )
+
                 self.opt.zero_grad(); loss.backward(); self.opt.step()
 
             metrics = evaluate_model(self.model, self.val_loader, self.device, self.cfg['eval']['angles'])

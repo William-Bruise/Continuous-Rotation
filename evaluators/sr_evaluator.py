@@ -3,12 +3,12 @@ import json
 import os
 import torch
 from metrics.psnr_ssim import psnr, ssim_simple
-from metrics.equivariance_metrics import rotation_equivariance_error, reflection_equivariance_error
+from metrics.equivariance_metrics import rotation_equivariance_error, reflection_equivariance_error, continuous_rotation_equivariance_error
 
 
 def evaluate_model(model, loader, device, angles):
     model.eval()
-    out = {'psnr': [], 'ssim': [], 'rot_ee': [], 'ref_ee': []}
+    out = {'psnr': [], 'ssim': [], 'rot_ee': [], 'rot_ee_cont': [], 'ref_ee': []}
     with torch.no_grad():
         for batch in loader:
             lr = batch['lr_image'].to(device)
@@ -20,6 +20,7 @@ def evaluate_model(model, loader, device, angles):
             out['psnr'].append(psnr(pred, gt))
             out['ssim'].append(ssim_simple(pred, gt))
             out['rot_ee'].append(rotation_equivariance_error(model, lr, q, cell, scale, angles))
+            out['rot_ee_cont'].append(continuous_rotation_equivariance_error(model, lr, q, cell, scale, num_angles=8))
             out['ref_ee'].append(reflection_equivariance_error(model, lr, q, cell, scale))
     return {k: float(sum(v)/max(1, len(v))) for k, v in out.items()}
 

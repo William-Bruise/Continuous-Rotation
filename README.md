@@ -1,101 +1,63 @@
-# Continuous-Rotation: O2LIIFSR / GroupO2LIIFSR Research Prototype
+# Continuous-Rotation SR Prototype
 
-## 1) 结论先说：是否已经实现“连续旋转等变”？
-**没有。当前版本还不是严格的 continuous O(2)-equivariant network。**
+## 状态声明（重要）
+- **当前版本已实现“连续角变量主导”的 SO(2) 近似建模**：orientation 用连续 `θ∈[0,2π)` 查询，不再以 rotation bin 作为主表示对象。
+- **仍非严格数学上完全连续等变**：因为仍有数值近似（有限 Fourier 阶数、有限 quadrature、grid_sample 插值、encoder 非严格 steerable）。
 
-当前实现是一个**离散近似原型**：
-- 用离散群 `G_K={(k,r)}`（`k=0..K-1`, `r∈{0,1}`）近似 `O(2)`；
-- `EquivariantEncoder` 采用 lifting（对每个离散群元素变换输入后共享 backbone 编码）；
-- `SpectralAngularMix` 在离散 rotation bins 上做有限阶 Fourier 模态截断（`num_angular_modes=M`）；
-- reflection 通过 even/odd decomposition 处理。
+## 连续目标 vs 当前实现
+1. 理论目标：continuous SO(2)/O(2)-equivariant restoration。  
+2. 表示层实现：**Fourier coefficient field**（`A0, Acos, Asin`）定义连续 `z(u,θ)`。  
+3. 数值近似：空间 bilinear 采样 + 有限 Fourier truncation `M` + 有限 quadrature `Q` + 图像旋转插值。
 
-所以它是：
-- ✅ **discrete quadrature approximation + finite angular truncation**
-- ❌ **不是最终连续群解析等变算子**。
+## 新增连续表示核心
+- `models/continuous.py`
+  - `FourierCoeffEncoder`: 输出 `A0∈R[B,C,H,W]`, `Acos/Asin∈R[B,M,C,H,W]`
+  - `sample_orientation_feature(coeffs, coords, theta)`: 实现
+    `z(p,θ)=a0(p)+Σ_m[a_m(p)cos(mθ)+b_m(p)sin(mθ)`]
+  - `OrientationQuadratureAggregator`: 用 `Q` 个 `θ_q` 做数值积分近似
+    `q(p)≈(1/Q)Σ_q z(p,θ_q)`
+  - `ContinuousGroupO2LIIFSR`: `CoeffEncoder -> ContinuousSampler -> QuadratureAgg -> Decoder`
 
----
+## 连续等变损失与指标
+- 损失：`continuous_equivariance_loss`
+  - `θ~Uniform(0,2π)`
+  - `L_eq = || f(T_θ y, p) - f(y, R_{-θ}p) ||_1`
+- 指标：
+  - `rot_ee`（离散角列表）
+  - `rot_ee_cont`（连续随机角采样）
 
-## 2) 当前实现了什么
-- Arbitrary-scale implicit SR 主链路：`Enc -> Samp -> Dec`
-- Group-aware 版本：`Enc_G -> SpectralGroupBlocks -> GroupSampler -> GroupDecoder`
-- 训练损失：`L_rec + λ_rot L_rot + λ_ref L_ref`
-- 指标：`PSNR / SSIM / Rot-EE / Ref-EE`
-- 自动化：数据准备、训练、测试、checkpoint、指标导出
-
----
-
-## 3) 如何运行代码
-
-### 3.1 准备数据目录
+## 运行方式
+### 1) 准备数据
 ```bash
 python scripts/prepare_data.py --root ./data
 ```
-- 会创建：`data/train_hr`, `data/val_hr`, `data/test_hr`
-- 会尝试下载公开 DIV2K（若网络不可达会给出 `download_report`）
 
-若你只想建目录不下载：
-```bash
-python scripts/prepare_data.py --root ./data --no-download
-```
-
-### 3.2 训练
+### 2) 训练（默认 continuous_so2）
 ```bash
 python scripts/train_sr.py --config configs/default_sr.yaml
 ```
-默认配置会在 `outputs/<timestamp>/` 生成：
-- `config.yaml`
-- `train.log`
-- `metrics.json`
-- `metrics.csv`
-- `checkpoints/latest.pt`
-- `checkpoints/best.pt`
 
-### 3.3 测试
+### 3) 测试
 ```bash
-python scripts/test_sr.py \
-  --config configs/default_sr.yaml \
-  --ckpt outputs/<exp>/checkpoints/best.pt \
-  --out outputs/test_eval
+python scripts/test_sr.py --config configs/default_sr.yaml --ckpt outputs/<exp>/checkpoints/best.pt --out outputs/test_eval
 ```
 
-### 3.4 谱参数扫描（消融）
+### 4) 可选谱扫描（legacy离散谱模块）
 ```bash
 python scripts/scan_spectral.py --config configs/default_sr.yaml --out outputs/spectral_scan.json
 ```
-会扫：
-- `K in {4,8,12,16}`
-- `use_reflection in {False,True}`
-- `M in [1..floor(K/2)]`
-并输出 JSON/CSV。
 
----
+## 关键配置
+`configs/default_sr.yaml` 里可调：
+- `model.num_fourier_orders` (M)
+- `model.num_orientation_quadrature` (Q)
+- `model.orientation_quadrature_mode` (`uniform`/`random`)
+- `loss.use_continuous_eq_loss`
+- `loss.continuous_eq_loss_weight`
+- `eval.num_continuous_eval_angles`
+- `model.max_rotation_radians`
+- `model.align_corners`
+- `model.rotation_interp_mode`
 
-## 4) 配置切换（重点）
-在 `configs/default_sr.yaml` 里可改：
-- `model.variant`：
-  - `baseline_liif`
-  - `baseline_liif_consistency`
-  - `group_encoder_baseline_decoder`
-  - `group_encoder_group_decoder`
-  - `group_encoder_group_decoder_consistency`
-- `model.num_rotations` (`K`)
-- `model.use_reflection`
-- `model.num_angular_modes` (`M`)
-- `model.num_spectral_blocks`
-- `model.spectral_residual`
-- `model.enable_spectral`
-
----
-
-## 5) 与最终“连续 O(2)-equivariant restoration”还差什么
-- 连续群上的严格等变卷积/算子（非固定 `K` bins）
-- 连续群积分与离散求和误差控制（可证明近似误差）
-- 与成像退化模型 `y=SBx+n` 深度耦合的连续算子实现
-- 更完整的连续角度评估协议与理论验证
-
----
-
-## 6) 一句话定位
-这个仓库现在是：
-> **可运行的、研究导向的、离散 O(2) 近似 + 谱截断的 implicit SR 原型**，
-> 不是最终连续 O(2)-equivariant 论文模型。
+## Legacy说明
+- `GroupO2LIIFSR` / `models/spectral.py` / lifting-by-bins 路径仍保留用于对照实验，属于 legacy discrete approximation。
