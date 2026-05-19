@@ -1,0 +1,32 @@
+seed: 42
+dataset:
+  root: ./data
+  train_dataset: div2k_asisr
+  test_datasets: [set5, set14]
+  patch_size: 96
+  query_points: 1024
+  scale_min: 1.0
+  scale_max: 4.0
+  interpolation_mode: bicubic
+model:
+  variant: group_encoder_group_decoder_consistency
+  group_K: 8
+  group_pooling: mean
+  reflect_axis: x
+  encoder_channels: 64
+  num_residual_blocks: 8
+  decoder_hidden_dim: 256
+train:
+  batch_size: 4
+  num_epochs: 2
+  learning_rate: 0.0002
+  validation_interval: 1
+  checkpoint_interval: 1
+  output_dir: outputs
+loss:
+  enable_rot: true
+  enable_ref: true
+  lambda_rot: 0.05
+  lambda_ref: 0.05
+eval:
+  angles: [0, 30, 45, 60, 90, 120, 150, 180]
