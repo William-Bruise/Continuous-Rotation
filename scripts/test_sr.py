@@ -23,7 +23,7 @@ if __name__ == '__main__':
         model = O2LIIFSR(feat_ch=mcfg['encoder_channels'], n_blocks=mcfg['num_residual_blocks'], decoder_hidden=mcfg['decoder_hidden_dim']).to(device)
     else:
         use_group_decoder = mcfg.get('variant') in ('group_encoder_group_decoder', 'group_encoder_group_decoder_consistency')
-        model = GroupO2LIIFSR(feat_ch=mcfg['encoder_channels'], n_blocks=mcfg['num_residual_blocks'], decoder_hidden=mcfg['decoder_hidden_dim'], K=mcfg.get('group_K', 8), pooling=mcfg.get('group_pooling', 'mean'), reflect_axis=mcfg.get('reflect_axis', 'x'), use_group_decoder=use_group_decoder).to(device)
+        model = GroupO2LIIFSR(feat_ch=mcfg['encoder_channels'], n_blocks=mcfg['num_residual_blocks'], decoder_hidden=mcfg['decoder_hidden_dim'], K=mcfg.get('num_rotations', mcfg.get('group_K', 8)), pooling=mcfg.get('group_pooling', 'mean'), reflect_axis=mcfg.get('reflect_axis', 'x'), use_group_decoder=use_group_decoder, use_reflection=mcfg.get('use_reflection', True), num_angular_modes=mcfg.get('num_angular_modes', 3), num_spectral_blocks=mcfg.get('num_spectral_blocks', 2), spectral_residual=mcfg.get('spectral_residual', True), enable_spectral=mcfg.get('enable_spectral', True)).to(device)
     load_checkpoint(args.ckpt, model, None, device)
     loader = DataLoader(BenchmarkSRDataset(cfg['dataset']['root'], 'test', cfg['dataset']['patch_size'], cfg['dataset']['query_points'], cfg['dataset']['scale_min'], cfg['dataset']['scale_max'], cfg['dataset']['interpolation_mode']), batch_size=1)
     metrics = evaluate_model(model, loader, device, cfg['eval']['angles'])

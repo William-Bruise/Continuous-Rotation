@@ -58,3 +58,15 @@ python scripts/test_sr.py --config configs/default_sr.yaml --ckpt outputs/<exp>/
   - `group_encoder_baseline_decoder`
   - `group_encoder_group_decoder`
   - `group_encoder_group_decoder_consistency`
+
+
+## 9. Spectral parameterized group-aware SR (current stage)
+- We insert spectral parameterization on group feature tensor `F_G` (scheme A): `Enc_G -> SpectralGroupBlocks -> Sampler -> Decoder`.
+- Rotation dimension uses band-limited Fourier expansion (cos/sin real basis) with configurable `num_angular_modes=M`.
+- Reflection dimension uses explicit even/odd decomposition: `even=(f0+f1)/2`, `odd=(f0-f1)/2`, then inverse recombination.
+- This is **not** full continuous O(2) analytic convolution; it is a discrete group spectral approximation to reduce angular aliasing and representation inefficiency.
+
+Run ablation scan:
+```bash
+python scripts/scan_spectral.py --config configs/default_sr.yaml --out outputs/spectral_scan.json
+```

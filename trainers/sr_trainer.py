@@ -45,8 +45,13 @@ class SRTrainer:
         use_group_decoder = variant in ('group_encoder_group_decoder', 'group_encoder_group_decoder_consistency')
         return GroupO2LIIFSR(
             feat_ch=mcfg['encoder_channels'], n_blocks=mcfg['num_residual_blocks'], decoder_hidden=mcfg['decoder_hidden_dim'],
-            K=mcfg.get('group_K', 8), pooling=mcfg.get('group_pooling', 'mean'), reflect_axis=mcfg.get('reflect_axis', 'x'),
+            K=mcfg.get('num_rotations', mcfg.get('group_K', 8)), pooling=mcfg.get('group_pooling', 'mean'), reflect_axis=mcfg.get('reflect_axis', 'x'),
             use_group_decoder=use_group_decoder,
+            use_reflection=mcfg.get('use_reflection', True),
+            num_angular_modes=mcfg.get('num_angular_modes', 3),
+            num_spectral_blocks=mcfg.get('num_spectral_blocks', 2),
+            spectral_residual=mcfg.get('spectral_residual', True),
+            enable_spectral=mcfg.get('enable_spectral', True),
         )
 
     def _build_data(self):
