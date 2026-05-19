@@ -2,7 +2,7 @@ import os, sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 import argparse
 import os
-from datetime import datetime
+from datetime import datetime, UTC
 from utils.config import load_config, save_config
 from utils.logger import build_logger
 from utils.seed import set_seed
@@ -19,7 +19,7 @@ if __name__ == '__main__':
     cfg = load_config(args.config)
     set_seed(cfg['seed'])
     ensure_dataset_structure(cfg['dataset']['root'])
-    exp_dir = os.path.join(cfg['train']['output_dir'], datetime.utcnow().strftime('%Y%m%d_%H%M%S'))
+    exp_dir = os.path.join(cfg['train']['output_dir'], datetime.now(UTC).strftime('%Y%m%d_%H%M%S'))
     os.makedirs(exp_dir, exist_ok=True)
     save_config(cfg, os.path.join(exp_dir, 'config.yaml'))
     logger = build_logger(os.path.join(exp_dir, 'train.log'))

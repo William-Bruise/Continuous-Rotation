@@ -1,6 +1,7 @@
 import os
 import random
 import torch
+import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from datasets import DIV2KASISRDataset
 from models import O2LIIFSR
@@ -8,6 +9,28 @@ from losses.reconstruction import reconstruction_l1
 from losses.equivariance import rotation_consistency_loss, reflection_consistency_loss
 from evaluators.sr_evaluator import evaluate_model, save_metrics
 from utils.checkpoint import save_checkpoint, load_checkpoint
+
+
+def _pad_to_max_hw(images):
+    max_h = max(x.shape[-2] for x in images)
+    max_w = max(x.shape[-1] for x in images)
+    out = []
+    for x in images:
+        pad_h = max_h - x.shape[-2]
+        pad_w = max_w - x.shape[-1]
+        out.append(F.pad(x, (0, pad_w, 0, pad_h), mode='replicate'))
+    return torch.stack(out, dim=0)
+
+
+def asisr_collate_fn(batch):
+    collated = {}
+    collated['lr_image'] = _pad_to_max_hw([b['lr_image'] for b in batch])
+    collated['query_coords'] = torch.stack([b['query_coords'] for b in batch], dim=0)
+    collated['gt_rgb'] = torch.stack([b['gt_rgb'] for b in batch], dim=0)
+    collated['cell'] = torch.stack([b['cell'] for b in batch], dim=0)
+    collated['scale'] = torch.stack([b['scale'] for b in batch], dim=0)
+    collated['full_hr_patch'] = torch.stack([b['full_hr_patch'] for b in batch], dim=0)
+    return collated
 
 
 class SRTrainer:
@@ -21,8 +44,17 @@ class SRTrainer:
 
     def _build_data(self):
         dcfg = self.cfg['dataset']
-        self.train_loader = DataLoader(DIV2KASISRDataset(dcfg['root'], 'train', dcfg['patch_size'], dcfg['query_points'], dcfg['scale_min'], dcfg['scale_max'], dcfg['interpolation_mode']), batch_size=self.cfg['train']['batch_size'], shuffle=True)
-        self.val_loader = DataLoader(DIV2KASISRDataset(dcfg['root'], 'val', dcfg['patch_size'], dcfg['query_points'], dcfg['scale_min'], dcfg['scale_max'], dcfg['interpolation_mode']), batch_size=1)
+        self.train_loader = DataLoader(
+            DIV2KASISRDataset(dcfg['root'], 'train', dcfg['patch_size'], dcfg['query_points'], dcfg['scale_min'], dcfg['scale_max'], dcfg['interpolation_mode']),
+            batch_size=self.cfg['train']['batch_size'],
+            shuffle=True,
+            collate_fn=asisr_collate_fn,
+        )
+        self.val_loader = DataLoader(
+            DIV2KASISRDataset(dcfg['root'], 'val', dcfg['patch_size'], dcfg['query_points'], dcfg['scale_min'], dcfg['scale_max'], dcfg['interpolation_mode']),
+            batch_size=1,
+            collate_fn=asisr_collate_fn,
+        )
 
     def maybe_resume(self):
         p = os.path.join(self.exp_dir, 'checkpoints', 'latest.pt')
@@ -47,7 +79,9 @@ class SRTrainer:
                     loss = loss + self.cfg['loss']['lambda_rot'] * rotation_consistency_loss(self.model, lr, q, cell, scale, random.choice(self.cfg['eval']['angles']))
                 if self.cfg['loss']['enable_ref']:
                     loss = loss + self.cfg['loss']['lambda_ref'] * reflection_consistency_loss(self.model, lr, q, cell, scale)
-                self.opt.zero_grad(); loss.backward(); self.opt.step()
+                self.opt.zero_grad()
+                loss.backward()
+                self.opt.step()
 
             metrics = evaluate_model(self.model, self.val_loader, self.device, self.cfg['eval']['angles'])
             self.logger.info(f"epoch={epoch} metrics={metrics}")
