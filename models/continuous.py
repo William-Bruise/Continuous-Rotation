@@ -51,13 +51,15 @@ def sample_orientation_feature(coeffs, coords, theta):
         theta = theta.view(1, 1, 1).repeat(b, n, 1)
     elif theta.dim() == 1:
         theta = theta.view(b, 1, 1).repeat(1, n, 1)
+    elif theta.dim() == 2:
+        theta = theta.unsqueeze(-1)
     theta = theta.to(coords.device, coords.dtype)
 
     out = a0
     for i in range(m):
         order = i + 1
-        ct = torch.cos(order * theta).unsqueeze(-1)
-        st = torch.sin(order * theta).unsqueeze(-1)
+        ct = torch.cos(order * theta)  # [B,N,1]
+        st = torch.sin(order * theta)  # [B,N,1]
         out = out + acos_s[:, i] * ct + asin_s[:, i] * st
     return out
 
