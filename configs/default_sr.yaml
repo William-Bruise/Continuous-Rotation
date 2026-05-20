@@ -26,8 +26,8 @@ model:
   group_K: 8
   group_pooling: mean
   reflect_axis: x
-  encoder_channels: 80
-  num_residual_blocks: 8
+  encoder_channels: 128
+  num_residual_blocks: 12
   decoder_hidden_dim: 256
 train:
   batch_size: 16
