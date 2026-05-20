@@ -80,6 +80,57 @@ def try_download_public_sr_data(root, timeout_note=True):
     return results
 
 
+
+
+def try_import_local_benchmark_archives(root):
+    """Import local benchmark archives from data/_downloads without network."""
+    cache_dir = os.path.join(root, '_downloads')
+    base = os.path.join(root, 'benchmarks')
+    os.makedirs(cache_dir, exist_ok=True)
+    patterns = ['benchmark.tar', 'benchmark.zip', 'Set5.zip', 'Set14.zip', 'BSD100.zip', 'Urban100.zip']
+    found = []
+    for name in patterns:
+        pth = os.path.join(cache_dir, name)
+        if os.path.exists(pth):
+            found.append(pth)
+
+    extracted = []
+    for arc in found:
+        try:
+            low = arc.lower()
+            if low.endswith('.tar') or low.endswith('.tar.gz') or low.endswith('.tgz'):
+                with tarfile.open(arc, 'r:*') as tf:
+                    tf.extractall(cache_dir)
+            elif low.endswith('.zip'):
+                with zipfile.ZipFile(arc, 'r') as zf:
+                    zf.extractall(cache_dir)
+            extracted.append(arc)
+        except Exception:
+            pass
+
+    report = {}
+    extracted_any = False
+    for d in BENCHMARK_DATASETS:
+        src_candidates = glob.glob(os.path.join(cache_dir, '**', d, '**', '*'), recursive=True)
+        dst_dir = os.path.join(base, d, 'HR')
+        os.makedirs(dst_dir, exist_ok=True)
+        moved = 0
+        for src in src_candidates:
+            if not os.path.isfile(src):
+                continue
+            low = src.lower()
+            if not low.endswith(('.png', '.jpg', '.jpeg', '.bmp', '.webp')):
+                continue
+            dst = os.path.join(dst_dir, os.path.basename(src))
+            if not os.path.exists(dst):
+                os.replace(src, dst)
+                moved += 1
+        final_images = _count_images(dst_dir)
+        extracted_any = extracted_any or final_images > 0
+        report[d] = {'moved': moved, 'final_images': final_images}
+    return {'found_archives': found, 'extracted_archives': extracted, 'datasets': report, 'ok': extracted_any}
+
+
 def try_download_benchmarks(root):
     base = os.path.join(root, 'benchmarks')
     cache_dir = os.path.join(root, '_downloads')
@@ -88,13 +139,9 @@ def try_download_benchmarks(root):
         return {'status': 'skipped', 'reason': 'benchmark images already present'}
 
     # Allow local offline package import first (for restricted servers)
-    local_pack = os.path.join(cache_dir, 'benchmark.tar')
-    if os.path.exists(local_pack):
-        try:
-            with tarfile.open(local_pack, 'r') as tf:
-                tf.extractall(cache_dir)
-        except Exception:
-            pass
+    local_import = try_import_local_benchmark_archives(root)
+    if local_import.get('ok'):
+        return {'status': 'ok_local_import', **local_import}
 
     attempts = []
     downloaded = False

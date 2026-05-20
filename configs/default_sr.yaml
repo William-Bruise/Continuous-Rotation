@@ -3,9 +3,9 @@ dataset:
   root: ./data
   train_dataset: div2k_asisr
   test_datasets: [set5, set14]
-  patch_size: 96
-  query_points: 1024
-  scale_min: 1.0
+  patch_size: 192
+  query_points: 2304
+  scale_min: 2.0
   scale_max: 4.0
   interpolation_mode: bicubic
 model:
@@ -30,12 +30,14 @@ model:
   num_residual_blocks: 8
   decoder_hidden_dim: 256
 train:
-  batch_size: 4
-  num_epochs: 2
-  learning_rate: 0.0002
+  batch_size: 16
+  num_epochs: 1000
+  learning_rate: 0.0001
   validation_interval: 1
   checkpoint_interval: 1
   output_dir: outputs
+  lr_decay_step: 200
+  lr_decay_gamma: 0.5
 loss:
   enable_rot: true
   enable_ref: true

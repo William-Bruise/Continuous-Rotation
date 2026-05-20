@@ -91,3 +91,33 @@ python scripts/scan_spectral.py --config configs/default_sr.yaml --out outputs/s
 python scripts/prepare_data.py --root ./data --download-benchmarks
 ```
 说明：训练只需要 DIV2K。Set5/Set14/BSD100/Urban100 只用于测试。
+
+
+## 本地离线压缩包放置位置（你这种情况）
+如果服务器无法联网下载，请把压缩包放到：
+- `data/_downloads/Set5.zip`
+- `data/_downloads/Set14.zip`
+- `data/_downloads/BSD100.zip`
+- `data/_downloads/Urban100.zip`
+（也支持 `data/_downloads/benchmark.tar` 或 `benchmark.zip`）
+
+然后运行：
+```bash
+python scripts/prepare_data.py --root ./data --download-benchmarks
+```
+脚本会自动解压并拷贝到：
+- `data/benchmarks/Set5/HR`
+- `data/benchmarks/Set14/HR`
+- `data/benchmarks/BSD100/HR`
+- `data/benchmarks/Urban100/HR`
+
+
+## 论文设定对齐训练配置
+默认 `configs/default_sr.yaml` 已对齐为：
+- DIV2K 训练
+- scale range `[2,4]`
+- `batch_size=16`
+- `num_epochs=1000`
+- Adam 初始学习率 `1e-4`
+- 每 `200` epoch 学习率衰减到 `0.5x`
+- benchmark 测试输出 `benchmark_table.json/csv`，包含 Set5/Set14/BSD100/Urban100 在 in-scale(x2/x3/x4) 与 out-scale(x6/x8/x12) 的 PSNR/SSIM

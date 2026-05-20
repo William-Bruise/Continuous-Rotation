@@ -34,6 +34,7 @@ class SRTrainer:
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.model = self._build_model().to(self.device)
         self.opt = torch.optim.Adam(self.model.parameters(), lr=cfg['train']['learning_rate'])
+        self.scheduler = torch.optim.lr_scheduler.StepLR(self.opt, step_size=cfg['train'].get('lr_decay_step', 200), gamma=cfg['train'].get('lr_decay_gamma', 0.5))
         self.start_epoch, self.best_psnr = 0, -1e9
         self._build_data()
 
@@ -101,4 +102,5 @@ class SRTrainer:
                 save_checkpoint(os.path.join(ckpt_dir, 'best.pt'), self.model, self.opt, epoch, self.best_psnr)
             if (epoch + 1) % self.cfg['train']['validation_interval'] == 0:
                 save_metrics(metrics, self.exp_dir)
+            self.scheduler.step()
         return self.model
