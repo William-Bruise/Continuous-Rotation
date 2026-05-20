@@ -74,7 +74,7 @@ python scripts/scan_spectral.py --config configs/default_sr.yaml --out outputs/s
 
 
 ## 下载失败排查（例如 Connection reset by peer）
-如果 `prepare_data.py` 里 `benchmark_report.status=warning_unavailable_network`，通常是网络或镜像不可达，不是代码崩溃。脚本已自动尝试多个URL；若都失败，请手动放置到：
+如果 `prepare_data.py` 里 `benchmark_report.status=warning_unavailable_network`，通常是网络或镜像不可达，不是代码崩溃。脚本已自动尝试多个非 HuggingFace URL；若都失败，请手动放置到：
 - `data/benchmarks/Set5/HR`
 - `data/benchmarks/Set14/HR`
 - `data/benchmarks/BSD100/HR`

@@ -18,8 +18,9 @@ DEFAULT_SR_SOURCES = {
 BENCHMARK_DATASETS = ['Set5', 'Set14', 'BSD100', 'Urban100']
 BENCHMARK_URLS = [
     'https://cv.snu.ac.kr/research/EDSR/benchmark.tar',
+    'https://data.vision.ee.ethz.ch/cvl/DIV2K/benchmark.tar',
+    'https://github.com/XPixelGroup/BasicSR/releases/download/v1.0.0/benchmark.tar',
     'https://www.dropbox.com/s/zg8wz5n0kud3u8v/benchmark.tar?dl=1',
-    'https://huggingface.co/datasets/eugenesiow/Set5/resolve/main/Set5.zip',
 ]
 
 
