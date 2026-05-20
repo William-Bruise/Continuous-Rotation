@@ -30,16 +30,19 @@
 ### 1) 准备数据
 ```bash
 python scripts/prepare_data.py --root ./data
+# 默认仅检查/下载DIV2K训练数据，不自动下载benchmark测试集
 ```
 
 若你不希望看到网络告警，可只建目录：
 ```bash
-python scripts/prepare_data.py --root ./data --no-download
+python scripts/prepare_data.py --root ./data
+# 默认仅检查/下载DIV2K训练数据，不自动下载benchmark测试集 --no-download
 ```
 
 若你在CI里希望下载失败时返回非0退出码：
 ```bash
-python scripts/prepare_data.py --root ./data --strict-download
+python scripts/prepare_data.py --root ./data
+# 默认仅检查/下载DIV2K训练数据，不自动下载benchmark测试集 --strict-download
 ```
 
 ### 2) 训练（默认 continuous_so2）
@@ -74,10 +77,17 @@ python scripts/scan_spectral.py --config configs/default_sr.yaml --out outputs/s
 
 
 ## 下载失败排查（例如 Connection reset by peer）
-如果 `prepare_data.py` 里 `benchmark_report.status=warning_unavailable_network`，通常是网络或镜像不可达，不是代码崩溃。脚本已自动尝试多个非 HuggingFace URL；若都失败，请手动放置到：
+如果 `prepare_data.py` 里 `benchmark_report.status=warning_unavailable_network`，通常是网络或镜像不可达，不是代码崩溃。当你显式开启 `--download-benchmarks` 时，脚本会尝试官方 EDSR benchmark 链接；若失败，请手动放置到：
 - `data/benchmarks/Set5/HR`
 - `data/benchmarks/Set14/HR`
 - `data/benchmarks/BSD100/HR`
 - `data/benchmarks/Urban100/HR`
 
 之后重新运行 `prepare_data.py`，应看到 benchmark 图片计数大于 0。
+
+
+### 可选：下载测试基准集（仅测试用）
+```bash
+python scripts/prepare_data.py --root ./data --download-benchmarks
+```
+说明：训练只需要 DIV2K。Set5/Set14/BSD100/Urban100 只用于测试。

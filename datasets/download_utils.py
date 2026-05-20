@@ -17,10 +17,8 @@ DEFAULT_SR_SOURCES = {
 
 BENCHMARK_DATASETS = ['Set5', 'Set14', 'BSD100', 'Urban100']
 BENCHMARK_URLS = [
+    # Official benchmark package used by EDSR/RCAN-style SR evaluations
     'https://cv.snu.ac.kr/research/EDSR/benchmark.tar',
-    'https://data.vision.ee.ethz.ch/cvl/DIV2K/benchmark.tar',
-    'https://github.com/XPixelGroup/BasicSR/releases/download/v1.0.0/benchmark.tar',
-    'https://www.dropbox.com/s/zg8wz5n0kud3u8v/benchmark.tar?dl=1',
 ]
 
 
@@ -153,11 +151,11 @@ def try_download_benchmarks(root):
     }
 
 
-def prepare_dataset(root, auto_download=True):
+def prepare_dataset(root, auto_download=True, auto_download_benchmarks=False):
     ensure_dataset_structure(root)
     ensure_benchmark_structure(root)
     download_report = try_download_public_sr_data(root) if auto_download else {}
-    benchmark_report = try_download_benchmarks(root) if auto_download else {}
+    benchmark_report = try_download_benchmarks(root) if (auto_download and auto_download_benchmarks) else {'status': 'skipped', 'reason': 'benchmark auto-download disabled (enable explicitly for test prep)'}
     summary = {split: _count_images(os.path.join(root, split)) for split in ['train_hr', 'val_hr', 'test_hr']}
     benchmark_summary = {d: _count_images(os.path.join(root, 'benchmarks', d, 'HR')) for d in BENCHMARK_DATASETS}
     return {
@@ -167,5 +165,5 @@ def prepare_dataset(root, auto_download=True):
         'benchmark_images': benchmark_summary,
         'download_report': download_report,
         'benchmark_report': benchmark_report,
-        'message': 'Dataset prepared. Benchmark auto-download is best-effort; network-restricted environments may require manual benchmark file copy to benchmarks/<dataset>/HR.',
+        'message': 'Dataset prepared. DIV2K train/val is auto-checked for training. Benchmark datasets (Set5/Set14/BSD100/Urban100) are test-only and optional to auto-download.',
     }
