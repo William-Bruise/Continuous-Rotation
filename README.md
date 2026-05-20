@@ -61,3 +61,13 @@ python scripts/scan_spectral.py --config configs/default_sr.yaml --out outputs/s
 
 ## Legacy说明
 - `GroupO2LIIFSR` / `models/spectral.py` / lifting-by-bins 路径仍保留用于对照实验，属于 legacy discrete approximation。
+
+
+## 下载失败排查（例如 Connection reset by peer）
+如果 `prepare_data.py` 里 `benchmark_report.status=failed`，通常是网络或镜像不可达，不是代码崩溃。脚本已自动尝试多个URL；若都失败，请手动放置到：
+- `data/benchmarks/Set5/HR`
+- `data/benchmarks/Set14/HR`
+- `data/benchmarks/BSD100/HR`
+- `data/benchmarks/Urban100/HR`
+
+之后重新运行 `prepare_data.py`，应看到 benchmark 图片计数大于 0。

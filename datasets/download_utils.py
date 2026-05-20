@@ -16,9 +16,10 @@ DEFAULT_SR_SOURCES = {
 }
 
 BENCHMARK_DATASETS = ['Set5', 'Set14', 'BSD100', 'Urban100']
-BENCHMARK_URLS = {
-    'benchmark_tar': 'https://cv.snu.ac.kr/research/EDSR/benchmark.tar',
-}
+BENCHMARK_URLS = [
+    'https://cv.snu.ac.kr/research/EDSR/benchmark.tar',
+    'https://www.dropbox.com/s/zg8wz5n0kud3u8v/benchmark.tar?dl=1',
+]
 
 
 def _count_images(folder):
@@ -87,8 +88,25 @@ def try_download_benchmarks(root):
         return {'status': 'skipped', 'reason': 'benchmark images already present'}
 
     tar_path = os.path.join(cache_dir, 'benchmark.tar')
+    errors = []
+    downloaded = False
+    for url in BENCHMARK_URLS:
+        try:
+            urlretrieve(url, tar_path)
+            downloaded = True
+            break
+        except Exception as e:  # noqa: BLE001
+            errors.append(f'{url} -> {e}')
+
+    if not downloaded:
+        return {
+            'status': 'failed',
+            'error': 'all benchmark URLs failed',
+            'attempts': errors,
+            'manual_hint': 'Please manually place benchmark images under data/benchmarks/{Set5,Set14,BSD100,Urban100}/HR',
+        }
+
     try:
-        urlretrieve(BENCHMARK_URLS['benchmark_tar'], tar_path)
         with tarfile.open(tar_path, 'r') as tf:
             tf.extractall(cache_dir)
         report = {}
@@ -105,7 +123,7 @@ def try_download_benchmarks(root):
             report[d] = {'moved': moved, 'final_images': _count_images(dst_dir)}
         return {'status': 'ok', 'datasets': report}
     except Exception as e:  # noqa: BLE001
-        return {'status': 'failed', 'error': str(e)}
+        return {'status': 'failed', 'error': str(e), 'manual_hint': 'Downloaded archive invalid; place files manually in benchmarks/<dataset>/HR'}
 
 
 def prepare_dataset(root, auto_download=True):
@@ -122,5 +140,5 @@ def prepare_dataset(root, auto_download=True):
         'benchmark_images': benchmark_summary,
         'download_report': download_report,
         'benchmark_report': benchmark_report,
-        'message': 'Dataset prepared. Missing files can be manually added under train_hr/val_hr/test_hr and benchmarks/<dataset>/HR.',
+        'message': 'Dataset prepared. If benchmark download fails due to network, manually add files under benchmarks/<dataset>/HR.',
     }
