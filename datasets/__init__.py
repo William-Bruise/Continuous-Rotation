@@ -1,5 +1,6 @@
 __all__ = ['DIV2KASISRDataset', 'BenchmarkSRDataset']
 
+
 def __getattr__(name):
     if name == 'DIV2KASISRDataset':
         from .div2k_asisr import DIV2KASISRDataset

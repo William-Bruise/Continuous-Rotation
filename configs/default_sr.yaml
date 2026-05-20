@@ -45,5 +45,8 @@ loss:
   lambda_ref: 0.05
 eval:
   angles: [0, 30, 45, 60, 90, 120, 150, 180]
-
   num_continuous_eval_angles: 8
+benchmark_eval:
+  datasets: [Set5, Set14, BSD100, Urban100]
+  in_scales: [2, 3, 4]
+  out_scales: [6, 8, 12]
