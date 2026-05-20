@@ -145,8 +145,8 @@ def try_download_benchmarks(root):
     if extracted_any:
         return {'status': 'ok', 'datasets': report, 'attempts': attempts}
     return {
-        'status': 'unavailable_network',
-        'error': 'benchmark mirrors unreachable or blocked in current network',
+        'status': 'warning_unavailable_network',
+        'warning': 'benchmark mirrors unreachable or blocked in current network',
         'attempts': attempts,
         'manual_hint': 'If your server is offline/blocked, manually copy images to data/benchmarks/{Set5,Set14,BSD100,Urban100}/HR',
     }
@@ -166,5 +166,5 @@ def prepare_dataset(root, auto_download=True):
         'benchmark_images': benchmark_summary,
         'download_report': download_report,
         'benchmark_report': benchmark_report,
-        'message': 'Dataset prepared. Benchmark download is best-effort. In restricted networks, copy benchmark images manually to benchmarks/<dataset>/HR.',
+        'message': 'Dataset prepared. Benchmark auto-download is best-effort; network-restricted environments may require manual benchmark file copy to benchmarks/<dataset>/HR.',
     }
