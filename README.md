@@ -133,3 +133,13 @@ python scripts/count_params.py --config configs/default_sr.yaml --out outputs/pa
 - 各子模块参数量（`module_params`）
 
 用于和论文表格 `Param.` 列直接对齐。
+
+
+## 参数量对齐建议（与你表格的 1.3M 档位）
+当前 `continuous_so2` 的参数主要由 `coeff_encoder` 决定。
+若 `scripts/count_params.py` 输出过小，可优先调大 `model.encoder_channels`。
+默认配置已上调到 `encoder_channels: 80`，用于接近 1.3M 量级。
+推荐用以下命令复查：
+```bash
+python scripts/count_params.py --config configs/default_sr.yaml --out outputs/param_count.json
+```
