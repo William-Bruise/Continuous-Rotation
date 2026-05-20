@@ -1,0 +1,54 @@
+seed: 42
+dataset:
+  root: ./data
+  train_dataset: div2k_asisr
+  test_datasets: [set5, set14]
+  patch_size: 192
+  query_points: 2304
+  scale_min: 2.0
+  scale_max: 4.0
+  interpolation_mode: bicubic
+model:
+  variant: continuous_so2
+  num_rotations: 8
+  num_fourier_orders: 3
+  num_orientation_quadrature: 8
+  orientation_quadrature_mode: uniform
+  max_rotation_radians: 6.283185307179586
+  align_corners: false
+  rotation_interp_mode: bilinear
+  use_reflection: true
+  num_angular_modes: 3
+  num_spectral_blocks: 2
+  spectral_hidden_channels: 64
+  spectral_residual: true
+  enable_spectral: true
+  group_K: 8
+  group_pooling: mean
+  reflect_axis: x
+  encoder_channels: 64
+  num_residual_blocks: 8
+  decoder_hidden_dim: 256
+train:
+  batch_size: 16
+  num_epochs: 1000
+  learning_rate: 0.0001
+  validation_interval: 1
+  checkpoint_interval: 1
+  output_dir: outputs
+  lr_decay_step: 200
+  lr_decay_gamma: 0.5
+loss:
+  enable_rot: true
+  enable_ref: true
+  use_continuous_eq_loss: true
+  continuous_eq_loss_weight: 0.05
+  lambda_rot: 0.05
+  lambda_ref: 0.05
+eval:
+  angles: [0, 30, 45, 60, 90, 120, 150, 180]
+  num_continuous_eval_angles: 8
+benchmark_eval:
+  datasets: [Set5, Set14, BSD100, Urban100]
+  in_scales: [2, 3, 4]
+  out_scales: [6, 8, 12]
