@@ -121,3 +121,15 @@ python scripts/prepare_data.py --root ./data --download-benchmarks
 - Adam 初始学习率 `1e-4`
 - 每 `200` epoch 学习率衰减到 `0.5x`
 - benchmark 测试输出 `benchmark_table.json/csv`，包含 Set5/Set14/BSD100/Urban100 在 in-scale(x2/x3/x4) 与 out-scale(x6/x8/x12) 的 PSNR/SSIM
+
+
+## 参数量自动统计
+运行：
+```bash
+python scripts/count_params.py --config configs/default_sr.yaml --out outputs/param_count.json
+```
+会输出：
+- 总参数量（`total_params` / `total_params_million`）
+- 各子模块参数量（`module_params`）
+
+用于和论文表格 `Param.` 列直接对齐。
